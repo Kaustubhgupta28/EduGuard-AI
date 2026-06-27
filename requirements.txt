@@ -1,0 +1,9 @@
+langchain-groq
+langgraph
+langchain-core
+langchain
+pymupdf
+python-docx
+python-pptx
+rich
+python-dotenv
