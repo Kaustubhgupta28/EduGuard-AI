@@ -7,3 +7,4 @@ python-docx
 python-pptx
 rich
 python-dotenv
+streamlit
