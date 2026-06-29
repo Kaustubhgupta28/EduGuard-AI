@@ -492,14 +492,14 @@ elif st.session_state.step == 2:
 
 
 # ════════════════════════════════════════════════════════════
-#  STEP 3 — Viva
+#  STEP 3 — Viva (MCQ + Short Answer)
 # ════════════════════════════════════════════════════════════
 elif st.session_state.step == 3:
     st.markdown("### 🧠 Step 3 — Knowledge Verification (Viva)")
 
-    # Generate questions once
+    # Generate questions once per session
     if st.session_state.questions is None:
-        with st.spinner("Generating adaptive viva questions..."):
+        with st.spinner("🎲 Generating unique questions for this session..."):
             try:
                 from agents.verification_agent import generate_viva_questions
                 qs = generate_viva_questions(
@@ -507,46 +507,61 @@ elif st.session_state.step == 3:
                     st.session_state.raw_text,
                     st.session_state.groq_api_key
                 )
-                st.session_state.questions  = qs
-                st.session_state.current_q  = 0
-                st.session_state.answers    = {}
+                st.session_state.questions = qs
+                st.session_state.current_q = 0
+                st.session_state.answers   = {}
             except Exception as e:
                 st.error(f"Question generation failed: {e}")
                 st.stop()
 
-    questions  = st.session_state.questions
-    current_q  = st.session_state.current_q
-    total_q    = len(questions)
+    questions = st.session_state.questions
+    current_q = st.session_state.current_q
+    total_q   = len(questions)
 
-    # Progress
-    progress = current_q / total_q
+    # Progress bar
+    progress = current_q / total_q if total_q > 0 else 0
     st.progress(progress)
     st.markdown(f'<p style="color:#64748b;text-align:right;font-size:0.85rem">Question {min(current_q+1, total_q)} of {total_q}</p>', unsafe_allow_html=True)
 
     if current_q < total_q:
-        q       = questions[current_q]
-        level   = q.get("level", "")
-        level_color = {"Basic": "green", "Intermediate": "yellow", "Advanced": "red"}.get(level, "blue")
-        marks   = q.get("marks", 2)
+        q     = questions[current_q]
+        qtype = q.get("type", "mcq")
+        level = q.get("level", "Basic")
+        marks = q.get("marks", 1)
+
+        level_class = {"Basic": "level-basic", "Intermediate": "level-intermediate", "Advanced": "level-advanced"}.get(level, "level-basic")
 
         st.markdown(f"""
         <div class="viva-box">
-            <div class="viva-level level-{level.lower()}">Q{current_q+1} · {level} · {marks} marks</div>
-            <div class="viva-question">{q.get('question','')}</div>
+            <div class="viva-level {level_class}">Q{current_q+1} · {level} · {marks} mark{"s" if marks > 1 else ""} · {"MCQ" if qtype == "mcq" else "Short Answer"}</div>
+            <div class="viva-question">{q.get("question", "")}</div>
         </div>
         """, unsafe_allow_html=True)
 
-        answer = st.text_area(
-            "Your Answer",
-            height=150,
-            placeholder="Type your answer here...",
-            key=f"ans_{current_q}",
-            label_visibility="collapsed"
-        )
-
-        col1, col2 = st.columns([1, 4])
-        with col1:
-            if st.button("Submit Answer ▶️", use_container_width=True):
+        if qtype == "mcq":
+            options = q.get("options", {})
+            option_labels = [f"{k}) {v}" for k, v in options.items()]
+            selected = st.radio(
+                "Choose your answer:",
+                option_labels,
+                key=f"mcq_{current_q}",
+                label_visibility="collapsed"
+            )
+            if st.button("Submit ▶️", use_container_width=True, key=f"sub_{current_q}"):
+                chosen_letter = selected[0] if selected else ""
+                st.session_state.answers[current_q] = chosen_letter
+                st.session_state.current_q += 1
+                st.rerun()
+        else:
+            # Short answer
+            answer = st.text_area(
+                "Your Answer (1-2 sentences)",
+                height=100,
+                placeholder="Write a concise answer...",
+                key=f"short_{current_q}",
+                label_visibility="collapsed"
+            )
+            if st.button("Submit ▶️", use_container_width=True, key=f"sub_{current_q}"):
                 if answer.strip():
                     st.session_state.answers[current_q] = answer.strip()
                     st.session_state.current_q += 1
@@ -561,26 +576,34 @@ elif st.session_state.step == 3:
         if st.session_state.viva_results is None:
             with st.spinner("Evaluating answers..."):
                 try:
-                    from agents.verification_agent import evaluate_answer
-                    results     = []
-                    total_score = 0
-                    total_marks = 0
+                    from agents.verification_agent import evaluate_mcq, evaluate_short_answer
+                    results       = []
+                    total_score   = 0
+                    total_marks   = 0
                     weak_concepts = []
 
                     for i, q in enumerate(questions):
-                        ans = st.session_state.answers.get(i, "")
-                        ev  = evaluate_answer(
-                            q["question"], ans,
-                            q.get("expected_keywords", []),
-                            q.get("marks", 2),
-                            st.session_state.groq_api_key
-                        )
+                        ans   = st.session_state.answers.get(i, "")
+                        qtype = q.get("type", "mcq")
+
+                        if qtype == "mcq":
+                            ev = evaluate_mcq(q, ans)
+                        else:
+                            ev = evaluate_short_answer(
+                                q["question"], ans,
+                                q.get("expected_keywords", []),
+                                q.get("marks", 3),
+                                st.session_state.groq_api_key
+                            )
+
                         total_score += ev.get("score", 0)
-                        total_marks += ev.get("max_marks", q.get("marks", 2))
+                        total_marks += ev.get("max_marks", q.get("marks", 1))
                         weak_concepts.extend(ev.get("missing_concepts", []))
-                        results.append({"question_no": i+1, "level": q["level"],
-                                        "question": q["question"],
-                                        "student_answer": ans, "evaluation": ev})
+                        results.append({
+                            "question_no": i+1, "level": q.get("level"),
+                            "type": qtype, "question": q.get("question"),
+                            "student_answer": ans, "evaluation": ev
+                        })
 
                     pct = round((total_score / total_marks) * 100, 1) if total_marks else 0
                     und = "Excellent" if pct >= 80 else "Good" if pct >= 60 else "Moderate" if pct >= 40 else "Poor"
@@ -600,17 +623,29 @@ elif st.session_state.step == 3:
         viva = st.session_state.viva_results
         pct  = viva.get("percentage", 0)
         und  = viva.get("understanding_level", "")
-        color = {"Excellent": "green", "Good": "blue", "Moderate": "yellow", "Poor": "red"}.get(und, "blue")
 
+        # Show results with answer review
         st.markdown('<div class="card">', unsafe_allow_html=True)
         st.markdown('<div class="card-title">📊 Viva Results</div>', unsafe_allow_html=True)
         c1, c2, c3 = st.columns(3)
         c1.metric("Total Score", f"{viva['total_score']}/{viva['total_marks']}")
-        c2.metric("Percentage", f"{pct}%")
+        c2.metric("Percentage",  f"{pct}%")
         c3.metric("Understanding", und)
         if viva.get("weak_concepts"):
             st.markdown(f"**Weak Areas:** {', '.join(viva['weak_concepts'])}")
         st.markdown('</div>', unsafe_allow_html=True)
+
+        # MCQ answer review
+        st.markdown("**📋 Answer Review:**")
+        for r in viva.get("questions_and_answers", []):
+            ev = r.get("evaluation", {})
+            is_correct = ev.get("is_correct", None)
+            icon = "✅" if is_correct else ("❌" if is_correct is False else "📝")
+            qtype = r.get("type", "mcq")
+            if qtype == "mcq":
+                st.markdown(f"{icon} **Q{r['question_no']}** [{r['level']}] — Selected: **{r['student_answer']}** | Correct: **{ev.get('correct_option','')}**")
+            else:
+                st.markdown(f"📝 **Q{r['question_no']}** [Short] — Score: {ev.get('score',0)}/{ev.get('max_marks',3)}")
 
         if st.button("▶️ Get Feedback & Roadmap", use_container_width=True):
             st.session_state.step = 4
