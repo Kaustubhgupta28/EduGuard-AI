@@ -342,25 +342,56 @@ def badge(text, color="blue"):
 # ════════════════════════════════════════════════════════════
 #  STEP 1 — Upload
 # ════════════════════════════════════════════════════════════
+
+# ── Auto-load API key from Streamlit secrets or .env ──
+def get_api_key():
+    # Priority 1: Streamlit Cloud secrets
+    try:
+        if "GROQ_API_KEY" in st.secrets:
+            return st.secrets["GROQ_API_KEY"]
+    except Exception:
+        pass
+    # Priority 2: .env / environment variable
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+    except Exception:
+        pass
+    key = os.getenv("GROQ_API_KEY", None)
+    if key:
+        return key
+    return None
+
+auto_key = get_api_key()
+
 if st.session_state.step == 1:
     st.markdown("### 📁 Step 1 — Upload Submission")
     st.markdown('<p style="color:#64748b">Upload any student submission file to begin evaluation.</p>', unsafe_allow_html=True)
 
-    col1, col2 = st.columns([2, 1])
-
-    with col1:
+    if auto_key:
+        # Key found automatically — full width uploader
+        st.markdown('<div style="background:#064e3b;border:1px solid #34d399;border-radius:8px;padding:10px 16px;margin-bottom:16px;color:#34d399;font-size:0.85rem">✅ API Key loaded automatically — no need to enter manually.</div>', unsafe_allow_html=True)
         uploaded = st.file_uploader(
             "Drop your file here",
             type=["pdf", "docx", "pptx", "txt", "py", "js", "java", "cpp"],
             label_visibility="collapsed"
         )
-
-    with col2:
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.markdown('<div class="card-title">🔑 Groq API Key</div>', unsafe_allow_html=True)
-        api_key = st.text_input("API Key", type="password", placeholder="gsk_...", label_visibility="collapsed")
-        st.markdown('<p style="color:#475569;font-size:0.75rem">Get free key at console.groq.com</p>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+        api_key = auto_key
+    else:
+        # No key found — show input box
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            uploaded = st.file_uploader(
+                "Drop your file here",
+                type=["pdf", "docx", "pptx", "txt", "py", "js", "java", "cpp"],
+                label_visibility="collapsed"
+            )
+        with col2:
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            st.markdown('<div class="card-title">🔑 Groq API Key</div>', unsafe_allow_html=True)
+            api_key = st.text_input("API Key", type="password", placeholder="gsk_...", label_visibility="collapsed")
+            st.markdown('<p style="color:#475569;font-size:0.75rem">Get free key at console.groq.com</p>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="card">', unsafe_allow_html=True)
     st.markdown('<div class="card-title">📋 Supported Formats</div>', unsafe_allow_html=True)
@@ -371,7 +402,6 @@ if st.session_state.step == 1:
 
     if uploaded and api_key:
         if st.button("🚀 Start Evaluation", use_container_width=True):
-            # Save uploaded file to temp
             suffix = os.path.splitext(uploaded.name)[1]
             tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
             tmp.write(uploaded.read())
