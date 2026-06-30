@@ -30,37 +30,47 @@ html, body, [class*="css"] {
 /* Hide streamlit branding */
 #MainMenu, footer, header { visibility: hidden; }
 
-/* Hero Banner */
+/* Responsive container padding */
+.block-container {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+    max-width: 900px !important;
+}
+
+/* Hero Banner — responsive */
 .hero {
     background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 50%, #fce7f3 100%);
     border: 1.5px solid #fecdd3;
     border-radius: 20px;
-    padding: 44px;
+    padding: 44px 24px;
     text-align: center;
     margin-bottom: 32px;
 }
 .hero h1 {
-    font-size: 3rem;
+    font-size: clamp(1.7rem, 6vw, 3rem);
     font-weight: 700;
     background: linear-gradient(90deg, #e11d48, #be123c, #9d174d);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     margin: 0 0 8px 0;
+    line-height: 1.2;
 }
 .hero p {
     color: #9d174d;
-    font-size: 1.05rem;
+    font-size: clamp(0.8rem, 2.2vw, 1.05rem);
     margin: 0;
+    line-height: 1.5;
 }
 
-/* Step Tracker */
+/* Step Tracker — responsive, wraps & shrinks on small screens */
 .step-tracker {
     display: flex;
     justify-content: center;
     align-items: center;
+    flex-wrap: wrap;
     gap: 0;
-    margin-bottom: 36px;
-    padding: 20px;
+    margin-bottom: 28px;
+    padding: 12px 4px;
 }
 .step-item {
     display: flex;
@@ -69,18 +79,19 @@ html, body, [class*="css"] {
     position: relative;
 }
 .step-circle {
-    width: 44px;
-    height: 44px;
+    width: clamp(32px, 8vw, 44px);
+    height: clamp(32px, 8vw, 44px);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 700;
-    font-size: 0.95rem;
+    font-size: clamp(0.7rem, 2vw, 0.95rem);
     border: 2px solid #fecdd3;
     background: #fff1f2;
     color: #fda4af;
     transition: all 0.3s;
+    flex-shrink: 0;
 }
 .step-circle.active {
     background: #e11d48;
@@ -94,20 +105,21 @@ html, body, [class*="css"] {
     color: white;
 }
 .step-label {
-    font-size: 0.72rem;
+    font-size: clamp(0.55rem, 1.8vw, 0.72rem);
     color: #fda4af;
-    margin-top: 8px;
+    margin-top: 6px;
     text-align: center;
     white-space: nowrap;
 }
 .step-label.active { color: #e11d48; font-weight: 600; }
 .step-label.done   { color: #be123c; }
 .step-connector {
-    width: 60px;
+    width: clamp(16px, 5vw, 60px);
     height: 2px;
     background: #fecdd3;
-    margin: 0 4px;
-    margin-bottom: 24px;
+    margin: 0 2px;
+    margin-bottom: 22px;
+    flex-shrink: 1;
 }
 .step-connector.done { background: #fb7185; }
 
@@ -116,11 +128,12 @@ html, body, [class*="css"] {
     background: #ffffff;
     border: 1.5px solid #fecdd3;
     border-radius: 14px;
-    padding: 24px;
+    padding: clamp(14px, 4vw, 24px);
     margin-bottom: 16px;
+    overflow-x: auto;
 }
 .card-title {
-    font-size: 1rem;
+    font-size: clamp(0.85rem, 2.5vw, 1rem);
     font-weight: 600;
     color: #be123c;
     margin-bottom: 12px;
@@ -174,11 +187,11 @@ html, body, [class*="css"] {
     border: 1.5px solid #fecdd3;
     border-left: 5px solid #e11d48;
     border-radius: 12px;
-    padding: 22px;
+    padding: clamp(14px, 4vw, 22px);
     margin-bottom: 16px;
 }
 .viva-level {
-    font-size: 0.75rem;
+    font-size: clamp(0.65rem, 2vw, 0.75rem);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -188,7 +201,7 @@ html, body, [class*="css"] {
 .level-intermediate { color: #d97706; }
 .level-advanced     { color: #e11d48; }
 .viva-question {
-    font-size: 1rem;
+    font-size: clamp(0.88rem, 2.5vw, 1rem);
     color: #3b1219;
     line-height: 1.6;
 }
@@ -198,11 +211,12 @@ html, body, [class*="css"] {
     background: #ffffff;
     border: 1px solid #fecdd3;
     border-radius: 12px;
-    padding: 16px;
+    padding: clamp(12px, 3vw, 16px);
     margin-bottom: 10px;
     display: flex;
-    gap: 16px;
+    gap: clamp(10px, 3vw, 16px);
     align-items: flex-start;
+    flex-wrap: wrap;
 }
 .day-number {
     background: #e11d48;
@@ -217,9 +231,9 @@ html, body, [class*="css"] {
     font-size: 0.85rem;
     flex-shrink: 0;
 }
-.day-content { flex: 1; }
-.day-topic { font-weight: 600; color: #3b1219; margin-bottom: 4px; }
-.day-goal  { font-size: 0.82rem; color: #9d174d; }
+.day-content { flex: 1; min-width: 200px; }
+.day-topic { font-weight: 600; color: #3b1219; margin-bottom: 4px; font-size: clamp(0.85rem, 2.5vw, 1rem); }
+.day-goal  { font-size: clamp(0.75rem, 2.2vw, 0.82rem); color: #9d174d; }
 
 /* Buttons */
 .stButton > button {
@@ -227,9 +241,10 @@ html, body, [class*="css"] {
     color: white !important;
     border: none !important;
     border-radius: 10px !important;
-    padding: 10px 24px !important;
+    padding: clamp(10px, 2.5vw, 12px) clamp(16px, 4vw, 24px) !important;
     font-weight: 600 !important;
-    font-size: 0.95rem !important;
+    font-size: clamp(0.85rem, 2.5vw, 0.95rem) !important;
+    min-height: 44px !important;
     transition: all 0.2s !important;
 }
 .stButton > button:hover {
@@ -250,14 +265,20 @@ html, body, [class*="css"] {
     box-shadow: none !important;
 }
 
-/* Radio button — no pre-filled circle styling */
+/* Radio button — no pre-filled circle styling, touch-friendly */
 .stRadio [role="radiogroup"] label {
     background: #fff1f2 !important;
     border: 1.5px solid #fecdd3 !important;
     border-radius: 10px !important;
-    padding: 10px 14px !important;
+    padding: 12px 14px !important;
     margin-bottom: 8px !important;
+    min-height: 44px !important;
     transition: all 0.2s !important;
+}
+.stRadio [role="radiogroup"] label p {
+    font-size: clamp(0.82rem, 2.3vw, 0.95rem) !important;
+    white-space: normal !important;
+    word-break: break-word !important;
 }
 .stRadio [role="radiogroup"] label:hover {
     border-color: #fb7185 !important;
@@ -306,10 +327,16 @@ html, body, [class*="css"] {
     background: #fff1f2 !important;
     border: 1px solid #fecdd3 !important;
     border-radius: 10px !important;
-    padding: 12px !important;
+    padding: clamp(8px, 2.5vw, 12px) !important;
 }
-[data-testid="stMetricLabel"] { color: #9d174d !important; }
-[data-testid="stMetricValue"] { color: #be123c !important; }
+[data-testid="stMetricLabel"] {
+    color: #9d174d !important;
+    font-size: clamp(0.7rem, 2vw, 0.85rem) !important;
+}
+[data-testid="stMetricValue"] {
+    color: #be123c !important;
+    font-size: clamp(1.1rem, 4vw, 1.6rem) !important;
+}
 
 /* Info/Success/Warning boxes */
 .stAlert { border-radius: 10px !important; }
@@ -337,9 +364,47 @@ hr { border-color: #fecdd3 !important; }
     border: 1.5px solid #fda4af !important;
     border-radius: 10px !important;
     font-weight: 600 !important;
+    min-height: 44px !important;
+    font-size: clamp(0.82rem, 2.3vw, 0.95rem) !important;
 }
 .stDownloadButton > button:hover {
     background: #fecdd3 !important;
+}
+
+/* ── Responsive breakpoints ──────────────────────────────────── */
+
+/* Tablets and small laptops */
+@media (max-width: 992px) {
+    .block-container {
+        padding-left: 0.75rem !important;
+        padding-right: 0.75rem !important;
+    }
+}
+
+/* Phones */
+@media (max-width: 640px) {
+    .block-container {
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
+        padding-top: 1rem !important;
+    }
+    .hero { padding: 28px 16px; border-radius: 16px; }
+    .card, .viva-box, .day-card { border-radius: 10px; }
+    .stTextArea textarea { font-size: 0.9rem !important; }
+    /* Force columns to stack on very narrow screens for readability */
+    [data-testid="stHorizontalBlock"] {
+        flex-wrap: wrap !important;
+    }
+    [data-testid="stHorizontalBlock"] > div {
+        min-width: 100% !important;
+        flex: 1 1 100% !important;
+    }
+}
+
+/* Small phones */
+@media (max-width: 400px) {
+    .step-connector { display: none; }
+    .hero h1 { font-size: 1.5rem; }
 }
 </style>
 """, unsafe_allow_html=True)
