@@ -361,6 +361,7 @@ def init_state():
         "feedback": None,
         "study_roadmap": None,
         "temp_file": None,
+        "pdf_bytes": None,
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -848,7 +849,7 @@ elif st.session_state.step == 5:
     c3.metric("AI Involvement",   f"{ai.get('ai_involvement_score',0)}%")
     c4.metric("Risk Level",       ai.get("risk_level","N/A"))
 
-    # Download report
+    # Generate & Download PDF report
     report_data = {
         "doc_profile":  st.session_state.doc_profile,
         "ai_detection": st.session_state.ai_detection,
@@ -856,13 +857,33 @@ elif st.session_state.step == 5:
         "feedback":     st.session_state.feedback,
         "study_roadmap": st.session_state.study_roadmap,
     }
-    st.download_button(
-        "⬇️ Download Full Report (JSON)",
-        data=json.dumps(report_data, indent=2),
-        file_name="eduguard_report.json",
-        mime="application/json",
-        use_container_width=True
-    )
+
+    try:
+        from utils.report_generator import generate_pdf_report
+        file_label = os.path.basename(st.session_state.file_path) if st.session_state.file_path else None
+
+        if "pdf_bytes" not in st.session_state or st.session_state.pdf_bytes is None:
+            with st.spinner("Building your PDF report..."):
+                st.session_state.pdf_bytes = generate_pdf_report(
+                    report_data, file_name=file_label
+                )
+
+        st.download_button(
+            "⬇️ Download Full Report (PDF)",
+            data=st.session_state.pdf_bytes,
+            file_name="EduGuard_Evaluation_Report.pdf",
+            mime="application/pdf",
+            use_container_width=True
+        )
+    except Exception as e:
+        st.error(f"PDF generation failed: {e}")
+        st.download_button(
+            "⬇️ Download Full Report (JSON fallback)",
+            data=json.dumps(report_data, indent=2),
+            file_name="eduguard_report.json",
+            mime="application/json",
+            use_container_width=True
+        )
 
     if st.button("🔄 Evaluate Another Submission", use_container_width=True):
         for key in list(st.session_state.keys()):
