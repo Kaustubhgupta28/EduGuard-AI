@@ -236,6 +236,33 @@ html, body, [class*="css"] {
     transform: translateY(-1px) !important;
     box-shadow: 0 4px 20px rgba(79,70,229,0.4) !important;
 }
+.stButton > button:disabled,
+.stButton > button[disabled] {
+    background: #fecdd3 !important;
+    color: #fda4af !important;
+    cursor: not-allowed !important;
+    box-shadow: none !important;
+    opacity: 0.7 !important;
+}
+.stButton > button:disabled:hover,
+.stButton > button[disabled]:hover {
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+/* Radio button — no pre-filled circle styling */
+.stRadio [role="radiogroup"] label {
+    background: #fff1f2 !important;
+    border: 1.5px solid #fecdd3 !important;
+    border-radius: 10px !important;
+    padding: 10px 14px !important;
+    margin-bottom: 8px !important;
+    transition: all 0.2s !important;
+}
+.stRadio [role="radiogroup"] label:hover {
+    border-color: #fb7185 !important;
+    background: #ffe4e6 !important;
+}
 
 /* File uploader */
 [data-testid="stFileUploader"] {
@@ -591,10 +618,12 @@ elif st.session_state.step == 3:
             selected = st.radio(
                 "Choose your answer:",
                 option_labels,
+                index=None,
                 key=f"mcq_{current_q}",
                 label_visibility="collapsed"
             )
-            if st.button("Submit ▶️", use_container_width=True, key=f"sub_{current_q}"):
+            is_disabled = selected is None
+            if st.button("Submit ▶️", use_container_width=True, key=f"sub_{current_q}", disabled=is_disabled):
                 chosen_letter = selected[0] if selected else ""
                 st.session_state.answers[current_q] = chosen_letter
                 st.session_state.current_q += 1
@@ -608,13 +637,11 @@ elif st.session_state.step == 3:
                 key=f"short_{current_q}",
                 label_visibility="collapsed"
             )
-            if st.button("Submit ▶️", use_container_width=True, key=f"sub_{current_q}"):
-                if answer.strip():
-                    st.session_state.answers[current_q] = answer.strip()
-                    st.session_state.current_q += 1
-                    st.rerun()
-                else:
-                    st.warning("Please write an answer before submitting.")
+            answer_empty = not answer.strip()
+            if st.button("Submit ▶️", use_container_width=True, key=f"sub_{current_q}", disabled=answer_empty):
+                st.session_state.answers[current_q] = answer.strip()
+                st.session_state.current_q += 1
+                st.rerun()
 
     else:
         # All answered — evaluate
