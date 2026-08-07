@@ -415,7 +415,7 @@ def init_state():
     defaults = {
         "step": 1,
         "file_path": None,
-        "groq_api_key": None,
+        "gemini_api_key": None,
         "doc_profile": None,
         "ai_detection": None,
         "raw_text": None,
@@ -487,8 +487,8 @@ def badge(text, color="blue"):
 def get_api_key():
     # Priority 1: Streamlit Cloud secrets
     try:
-        if "GROQ_API_KEY" in st.secrets:
-            return st.secrets["GROQ_API_KEY"]
+        if "GEMINI_API_KEY" in st.secrets:
+            return st.secrets["GEMINI_API_KEY"]
     except Exception:
         pass
     # Priority 2: .env / environment variable
@@ -497,7 +497,7 @@ def get_api_key():
         load_dotenv()
     except Exception:
         pass
-    key = os.getenv("GROQ_API_KEY", None)
+    key = os.getenv("GEMINI_API_KEY", None)
     if key:
         return key
     return None
@@ -505,57 +505,70 @@ def get_api_key():
 auto_key = get_api_key()
 
 if st.session_state.step == 1:
-    st.markdown("### 📁 Step 1 — Upload Submission")
-    st.markdown('<p style="color:#64748b">Upload any student submission file to begin evaluation.</p>', unsafe_allow_html=True)
+    st.markdown("### Step 1 — Upload Submission")
+    st.markdown('<p style="color:#9d174d">Upload a file or paste text directly (e.g. from NotebookLM)</p>', unsafe_allow_html=True)
 
+    # API Key
     if auto_key:
-        # Key found automatically — full width uploader
-        st.markdown('<div style="background:#064e3b;border:1px solid #34d399;border-radius:8px;padding:10px 16px;margin-bottom:16px;color:#34d399;font-size:0.85rem">✅ API Key loaded automatically — no need to enter manually.</div>', unsafe_allow_html=True)
+        st.markdown('<div style="background:#dcfce7;border:1px solid #86efac;border-radius:8px;padding:10px 16px;margin-bottom:16px;color:#166534;font-size:0.85rem">API Key loaded automatically</div>', unsafe_allow_html=True)
+        api_key = auto_key
+    else:
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.markdown('<div class="card-title">Gemini API Key</div>', unsafe_allow_html=True)
+        api_key = st.text_input("API Key", type="password", placeholder="AIza...", label_visibility="collapsed")
+        st.markdown('<p style="color:#9d174d;font-size:0.75rem">Get free key at aistudio.google.com</p>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # Input type tabs
+    tab1, tab2 = st.tabs(["Upload File", "Paste Text (NotebookLM)"])
+
+    uploaded     = None
+    pasted_text  = None
+
+    with tab1:
+        st.markdown('<p style="color:#9d174d;font-size:0.85rem;margin-bottom:8px">PDF, DOCX, PPTX, TXT, or Code files</p>', unsafe_allow_html=True)
         uploaded = st.file_uploader(
             "Drop your file here",
             type=["pdf", "docx", "pptx", "txt", "py", "js", "java", "cpp"],
             label_visibility="collapsed"
         )
-        api_key = auto_key
-    else:
-        # No key found — show input box
-        col1, col2 = st.columns([2, 1])
-        with col1:
-            uploaded = st.file_uploader(
-                "Drop your file here",
-                type=["pdf", "docx", "pptx", "txt", "py", "js", "java", "cpp"],
-                label_visibility="collapsed"
-            )
-        with col2:
-            st.markdown('<div class="card">', unsafe_allow_html=True)
-            st.markdown('<div class="card-title">🔑 Groq API Key</div>', unsafe_allow_html=True)
-            api_key = st.text_input("API Key", type="password", placeholder="gsk_...", label_visibility="collapsed")
-            st.markdown('<p style="color:#475569;font-size:0.75rem">Get free key at console.groq.com</p>', unsafe_allow_html=True)
-            st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown('<div class="card-title">📋 Supported Formats</div>', unsafe_allow_html=True)
-    cols = st.columns(4)
-    for col, fmt in zip(cols, ["📄 PDF", "📝 DOCX", "📊 PPTX", "💻 Code"]):
-        col.markdown(f'<p style="color:#94a3b8;text-align:center">{fmt}</p>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    with tab2:
+        st.markdown('<p style="color:#9d174d;font-size:0.85rem;margin-bottom:8px">Paste content from NotebookLM, Google Docs, or anywhere else</p>', unsafe_allow_html=True)
+        pasted_text = st.text_area(
+            "Paste your text here",
+            height=200,
+            placeholder="Paste your assignment, notes, or NotebookLM summary here...",
+            label_visibility="collapsed"
+        )
 
-    if uploaded and api_key:
-        if st.button("🚀 Start Evaluation", use_container_width=True):
+    # Start button logic
+    has_input = (uploaded is not None) or (pasted_text and pasted_text.strip())
+    can_start = has_input and bool(api_key)
+
+    if st.button("Start Evaluation", use_container_width=True, disabled=not can_start):
+        if uploaded:
             suffix = os.path.splitext(uploaded.name)[1]
             tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
             tmp.write(uploaded.read())
             tmp.close()
+            st.session_state.temp_file  = tmp.name
+            st.session_state.file_path  = tmp.name
+            st.session_state.raw_text_input = None
+        else:
+            # Text paste mode — save directly, skip file extraction
+            st.session_state.temp_file  = None
+            st.session_state.file_path  = None
+            st.session_state.raw_text_input = pasted_text.strip()
 
-            st.session_state.temp_file    = tmp.name
-            st.session_state.file_path    = tmp.name
-            st.session_state.groq_api_key = api_key
-            st.session_state.step         = 2
-            st.rerun()
-    elif uploaded and not api_key:
-        st.warning("Please enter your Groq API Key to continue.")
-    elif not uploaded:
-        st.info("Upload a file to begin.")
+        st.session_state.gemini_api_key = api_key
+        st.session_state.step = 2
+        st.rerun()
+
+    if not api_key:
+        st.warning("Please enter your Gemini API Key to continue.")
+    elif not has_input:
+        st.info("Upload a file or paste text to begin.")
 
 
 # ════════════════════════════════════════════════════════════
@@ -570,15 +583,36 @@ elif st.session_state.step == 2:
                 from agents.submission_agent import run_submission_agent
                 from agents.ai_detection_agent import run_ai_detection_agent
 
-                state = {
-                    "file_path": st.session_state.file_path,
-                    "groq_api_key": st.session_state.groq_api_key,
-                }
+                # Handle text paste mode (NotebookLM) vs file upload
+                raw_text_input = st.session_state.get("raw_text_input", None)
 
-                # Run submission agent
-                state = run_submission_agent(state)
+                if raw_text_input:
+                    # Text paste mode — skip file extraction, analyze directly
+                    state = {
+                        "file_path": None,
+                        "gemini_api_key": st.session_state.gemini_api_key,
+                        "raw_text": raw_text_input,
+                        "file_data": {
+                            "file_name": "pasted_text.txt",
+                            "file_type": ".txt",
+                            "word_count": len(raw_text_input.split()),
+                            "char_count": len(raw_text_input),
+                            "raw_text": raw_text_input,
+                        }
+                    }
+                    # Run LLM analysis directly (no file extraction needed)
+                    from agents.submission_agent import run_submission_agent
+                    state = run_submission_agent(state)
+                else:
+                    # File upload mode
+                    state = {
+                        "file_path": st.session_state.file_path,
+                        "gemini_api_key": st.session_state.gemini_api_key,
+                    }
+                    state = run_submission_agent(state)
+
                 st.session_state.doc_profile = state.get("doc_profile", {})
-                st.session_state.raw_text    = state.get("raw_text", "")
+                st.session_state.raw_text    = state.get("raw_text", raw_text_input or "")
 
                 # Run AI detection agent
                 state = run_ai_detection_agent(state)
@@ -645,7 +679,7 @@ elif st.session_state.step == 3:
                 qs = generate_viva_questions(
                     st.session_state.doc_profile,
                     st.session_state.raw_text,
-                    st.session_state.groq_api_key
+                    st.session_state.gemini_api_key
                 )
                 st.session_state.questions = qs
                 st.session_state.current_q = 0
@@ -733,7 +767,7 @@ elif st.session_state.step == 3:
                                 q["question"], ans,
                                 q.get("expected_keywords", []),
                                 q.get("marks", 3),
-                                st.session_state.groq_api_key
+                                st.session_state.gemini_api_key
                             )
 
                         total_score += ev.get("score", 0)
@@ -806,7 +840,7 @@ elif st.session_state.step == 4:
                     "doc_profile":  st.session_state.doc_profile,
                     "viva_results": st.session_state.viva_results,
                     "ai_detection": st.session_state.ai_detection,
-                    "groq_api_key": st.session_state.groq_api_key,
+                    "gemini_api_key": st.session_state.gemini_api_key,
                 }
                 state = run_feedback_agent(state)
                 st.session_state.feedback = state.get("feedback", {})
@@ -870,7 +904,7 @@ elif st.session_state.step == 5:
                     "doc_profile":  st.session_state.doc_profile,
                     "viva_results": st.session_state.viva_results,
                     "feedback":     st.session_state.feedback,
-                    "groq_api_key": st.session_state.groq_api_key,
+                    "gemini_api_key": st.session_state.gemini_api_key,
                 }
                 state = run_coach_agent(state)
                 st.session_state.study_roadmap = state.get("study_roadmap", {})
