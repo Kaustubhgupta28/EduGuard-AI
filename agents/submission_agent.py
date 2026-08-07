@@ -1,4 +1,4 @@
-from langchain_groq import ChatGroq
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from utils.file_extractor import extract_text
 
@@ -12,14 +12,24 @@ def run_submission_agent(state: dict) -> dict:
     - Passes enriched state forward
     """
 
-    file_path = state.get("file_path")
-    groq_api_key = state.get("groq_api_key")
+    file_path      = state.get("file_path")
+    gemini_api_key = state.get("gemini_api_key")
 
     print("\n[Submission Agent] Reading and analyzing file...")
 
-    # --- Step 1: Extract raw text ---
-    file_data = extract_text(file_path)
-    raw_text = file_data["raw_text"]
+    # --- Step 1: Extract raw text (skip if already provided via text paste) ---
+    if state.get("raw_text"):
+        raw_text  = state["raw_text"]
+        file_data = state.get("file_data", {
+            "file_name": "pasted_text.txt",
+            "file_type": ".txt",
+            "word_count": len(raw_text.split()),
+            "char_count": len(raw_text),
+            "raw_text": raw_text,
+        })
+    else:
+        file_data = extract_text(file_path)
+        raw_text  = file_data["raw_text"]
 
     if not raw_text:
         return {**state, "error": "Could not extract any text from the file."}
@@ -29,7 +39,7 @@ def run_submission_agent(state: dict) -> dict:
     print(f"  Words    : {file_data['word_count']}")
 
     # --- Step 2: Use LLM to analyze document ---
-    llm = ChatGroq(api_key=groq_api_key, model="llama-3.3-70b-versatile", temperature=0.3)
+    llm = ChatGoogleGenerativeAI(api_key=gemini_api_key, model="gemini-2.0-flash", temperature=0.3)
 
     system_prompt = """You are an expert academic document analyzer.
 Analyze the given student submission and return a structured JSON profile.
