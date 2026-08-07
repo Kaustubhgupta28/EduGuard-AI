@@ -1,5 +1,5 @@
 import json
-from langchain_groq import ChatGroq
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage
 
 
@@ -13,7 +13,7 @@ def run_feedback_agent(state: dict) -> dict:
     doc_profile  = state.get("doc_profile", {})
     viva_results = state.get("viva_results", {})
     ai_detection = state.get("ai_detection", {})
-    groq_api_key = state.get("groq_api_key")
+    gemini_api_key = state.get("gemini_api_key")
 
     print("[Feedback Agent] Generating feedback...\n")
 
@@ -25,7 +25,7 @@ def run_feedback_agent(state: dict) -> dict:
     risk_level     = ai_detection.get("risk_level", "Unknown")
     semantic       = ai_detection.get("semantic_analysis", {})
 
-    llm = ChatGroq(api_key=groq_api_key, model="llama-3.3-70b-versatile", temperature=0.5)
+    llm = ChatGoogleGenerativeAI(api_key=gemini_api_key, model="gemini-2.0-flash", temperature=0.5)
 
     # ── Student Feedback ──
     student_system = """You are a supportive academic mentor.
