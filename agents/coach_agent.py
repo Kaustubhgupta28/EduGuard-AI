@@ -1,5 +1,5 @@
 import json
-from langchain_groq import ChatGroq
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage
 
 
@@ -13,7 +13,7 @@ def run_coach_agent(state: dict) -> dict:
     doc_profile  = state.get("doc_profile", {})
     viva_results = state.get("viva_results", {})
     feedback     = state.get("feedback", {})
-    groq_api_key = state.get("groq_api_key")
+    gemini_api_key = state.get("gemini_api_key")
 
     print("[Learning Coach Agent] Building personalized study roadmap...\n")
 
@@ -29,7 +29,7 @@ def run_coach_agent(state: dict) -> dict:
     if not all_weak:
         all_weak = key_concepts[:3]
 
-    llm = ChatGroq(api_key=groq_api_key, model="llama-3.3-70b-versatile", temperature=0.6)
+    llm = ChatGoogleGenerativeAI(api_key=gemini_api_key, model="gemini-2.0-flash", temperature=0.6)
 
     system_prompt = """You are an expert academic learning coach.
 Create a personalized 7-day study roadmap for a student.
