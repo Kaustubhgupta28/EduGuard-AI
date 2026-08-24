@@ -37,6 +37,7 @@ def _parse_json_robust(text: str):
 def generate_viva_questions(doc_profile: dict, raw_text: str, groq_api_key: str) -> list:
     """
     Generate 9 MCQs + 1 Short Answer question.
+    Questions are based DIRECTLY on the submitted content — not just topic.
     High temperature + random seed = different questions every run.
     """
     rand_seed = random.randint(1000, 9999)
@@ -48,52 +49,66 @@ def generate_viva_questions(doc_profile: dict, raw_text: str, groq_api_key: str)
     has_math     = doc_profile.get("has_math", False)
     has_code     = doc_profile.get("has_code", False)
 
-    system_prompt = """You are an expert academic examiner. Generate exactly 10 questions.
+    # Use more content for better question generation
+    content_sample = raw_text[:4000] if len(raw_text) > 4000 else raw_text
 
-STRICT RULES:
-- Questions 1-9: MCQ type with exactly 4 options (A, B, C, D), exactly 1 correct answer
-- Question 10: Short answer type (1-2 sentence answer expected)
-- Cover different concepts — no repetition
+    system_prompt = """You are a strict academic examiner evaluating whether a student actually understands what they submitted.
+
+Your job: Read the student's submission carefully and generate questions that test if they TRULY understand what they wrote.
+
+CRITICAL RULES:
+- Questions MUST be based on specific content, facts, definitions, formulas, code, or arguments in the submission
+- Do NOT ask generic topic questions — ask about SPECIFIC things mentioned in the submission
+- If submission mentions a formula → ask about it
+- If submission mentions a specific algorithm → ask how it works
+- If submission mentions a specific advantage/disadvantage → ask why
+- If submission has code → ask what a specific function/class does
+- Wrong options must be plausible but clearly wrong based on submission content
+- Questions 1-9: MCQ with exactly 4 options (A/B/C/D), 1 correct
+- Question 10: Short answer requiring explanation of something specific from submission
 - Difficulty: Basic (Q1-Q3), Intermediate (Q4-Q6), Advanced (Q7-Q9)
-- Return ONLY a valid JSON array, nothing else
+- DIFFERENT questions every time (use the seed for variation)
+- Return ONLY a valid JSON array — no markdown, no explanation, no thinking tags
 
-EXACT FORMAT (copy this structure):
+EXACT JSON FORMAT:
 [
   {
     "type": "mcq",
     "level": "Basic",
-    "question": "Your question here?",
+    "question": "According to the submission, what does X mean?",
     "options": {
-      "A": "First option",
-      "B": "Second option",
-      "C": "Third option",
-      "D": "Fourth option"
+      "A": "Correct answer from submission",
+      "B": "Plausible wrong answer",
+      "C": "Another wrong answer",
+      "D": "Another wrong answer"
     },
     "correct_option": "A",
-    "correct_answer": "First option full text",
+    "correct_answer": "Correct answer from submission",
     "marks": 1
   },
   {
     "type": "short",
     "level": "Advanced",
-    "question": "Your short answer question here?",
-    "expected_keywords": ["keyword1", "keyword2"],
+    "question": "The submission mentions Y. Explain why this is important and how it works.",
+    "expected_keywords": ["keyword1", "keyword2", "keyword3"],
     "marks": 3
   }
-]
+]"""
 
-Return ONLY the JSON array. No explanation. No markdown. No thinking."""
-
-    user_prompt = f"""Topic: {topic}
+    user_prompt = f"""STUDENT SUBMISSION TO ANALYZE:
+Topic: {topic}
 Subject: {subject_area}
-Concepts: {', '.join(concepts) if concepts else topic}
-Has Math: {has_math} | Has Code: {has_code}
-Seed: {rand_seed}
+Key Concepts Detected: {', '.join(concepts) if concepts else 'Not detected'}
+Has Mathematical Content: {has_math}
+Has Code: {has_code}
+Random Seed (for variation): {rand_seed}
 
-Content sample:
-{raw_text[:2000]}
+--- FULL SUBMISSION CONTENT ---
+{content_sample}
+--- END OF SUBMISSION ---
 
-Generate 9 MCQs + 1 short answer question now."""
+Now generate 9 MCQs + 1 short answer question STRICTLY based on the above submission content.
+Test whether the student truly understands what they wrote — not just the general topic."""
 
     response = llm.invoke([
         SystemMessage(content=system_prompt),
