@@ -1,4 +1,4 @@
-langchain-google-genai
+langchain-groq
 langgraph
 langchain-core
 langchain
