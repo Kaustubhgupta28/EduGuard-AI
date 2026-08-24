@@ -12,52 +12,34 @@ def run_submission_agent(state: dict) -> dict:
     - Passes enriched state forward
     """
 
-    file_path = state.get("file_path")
+    file_path      = state.get("file_path")
     groq_api_key = state.get("groq_api_key")
 
     print("\n[Submission Agent] Reading and analyzing file...")
 
     # --- Step 1: Extract raw text (skip if already provided via text paste) ---
     if state.get("raw_text"):
-        raw_text = state["raw_text"]
-        file_data = state.get(
-            "file_data",
-            {
-                "file_name": "pasted_text.txt",
-                "file_type": ".txt",
-                "word_count": len(raw_text.split()),
-                "char_count": len(raw_text),
-                "raw_text": raw_text,
-            },
-        )
+        raw_text  = state["raw_text"]
+        file_data = state.get("file_data", {
+            "file_name": "pasted_text.txt",
+            "file_type": ".txt",
+            "word_count": len(raw_text.split()),
+            "char_count": len(raw_text),
+            "raw_text": raw_text,
+        })
     else:
         file_data = extract_text(file_path)
-        raw_text = file_data["raw_text"]
+        raw_text  = file_data["raw_text"]
 
     if not raw_text:
-        return {
-            **state,
-            "error": "Could not extract any text from the file.",
-        }
+        return {**state, "error": "Could not extract any text from the file."}
 
     print(f"  File     : {file_data['file_name']}")
     print(f"  Type     : {file_data['file_type']}")
     print(f"  Words    : {file_data['word_count']}")
 
-    if not groq_api_key:
-        return {
-            **state,
-            "error": "Groq API key is missing.",
-            "raw_text": raw_text,
-            "file_data": file_data,
-        }
-
-    # --- Step 2: Use Groq LLM to analyze document ---
-    llm = ChatGroq(
-        groq_api_key=groq_api_key,
-        model="llama-3.3-70b-versatile",
-        temperature=0.3,
-    )
+    # --- Step 2: Use LLM to analyze document ---
+    llm = ChatGroq(api_key=groq_api_key, model="llama-3.3-70b-versatile", temperature=0.3)
 
     system_prompt = """You are an expert academic document analyzer.
 Analyze the given student submission and return a structured JSON profile.
@@ -81,27 +63,14 @@ Return ONLY JSON. No explanation. No markdown. No backticks."""
 
 {raw_text[:3000]}"""
 
-    response = llm.invoke(
-        [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=user_prompt),
-        ]
-    )
+    response = llm.invoke([
+        SystemMessage(content=system_prompt),
+        HumanMessage(content=user_prompt)
+    ])
 
     import json
-
     try:
-        content = response.content.strip()
-
-        if content.startswith("```"):
-            parts = content.split("```")
-            if len(parts) >= 2:
-                content = parts[1]
-                if content.strip().lower().startswith("json"):
-                    content = content.strip()[4:]
-
-        doc_profile = json.loads(content.strip())
-
+        doc_profile = json.loads(response.content.strip())
     except Exception:
         # Fallback if JSON parsing fails
         doc_profile = {
@@ -113,7 +82,7 @@ Return ONLY JSON. No explanation. No markdown. No backticks."""
             "has_code": False,
             "has_math": False,
             "has_references": False,
-            "summary": raw_text[:300],
+            "summary": raw_text[:300]
         }
 
     print(f"  Topic    : {doc_profile.get('topic')}")
