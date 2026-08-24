@@ -516,7 +516,7 @@ if st.session_state.step == 1:
         st.markdown('<div class="card">', unsafe_allow_html=True)
         st.markdown('<div class="card-title">Groq API Key</div>', unsafe_allow_html=True)
         api_key = st.text_input("API Key", type="password", placeholder="gsk_...", label_visibility="collapsed")
-        st.markdown('<p style="color:#9d174d;font-size:0.75rem">Get free key at console.groq.com/keys</p>', unsafe_allow_html=True)
+        st.markdown('<p style="color:#9d174d;font-size:0.75rem">Get free key at console.groq.com</p>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
     # Input type tabs
