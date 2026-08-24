@@ -415,7 +415,7 @@ def init_state():
     defaults = {
         "step": 1,
         "file_path": None,
-        "gemini_api_key": None,
+        "groq_api_key": None,
         "doc_profile": None,
         "ai_detection": None,
         "raw_text": None,
@@ -487,8 +487,8 @@ def badge(text, color="blue"):
 def get_api_key():
     # Priority 1: Streamlit Cloud secrets
     try:
-        if "GEMINI_API_KEY" in st.secrets:
-            return st.secrets["GEMINI_API_KEY"]
+        if "GROQ_API_KEY" in st.secrets:
+            return st.secrets["GROQ_API_KEY"]
     except Exception:
         pass
     # Priority 2: .env / environment variable
@@ -497,7 +497,7 @@ def get_api_key():
         load_dotenv()
     except Exception:
         pass
-    key = os.getenv("GEMINI_API_KEY", None)
+    key = os.getenv("GROQ_API_KEY", None)
     if key:
         return key
     return None
@@ -514,9 +514,9 @@ if st.session_state.step == 1:
         api_key = auto_key
     else:
         st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.markdown('<div class="card-title">Gemini API Key</div>', unsafe_allow_html=True)
-        api_key = st.text_input("API Key", type="password", placeholder="AIza...", label_visibility="collapsed")
-        st.markdown('<p style="color:#9d174d;font-size:0.75rem">Get free key at aistudio.google.com</p>', unsafe_allow_html=True)
+        st.markdown('<div class="card-title">Groq API Key</div>', unsafe_allow_html=True)
+        api_key = st.text_input("API Key", type="password", placeholder="gsk_...", label_visibility="collapsed")
+        st.markdown('<p style="color:#9d174d;font-size:0.75rem">Get free key at console.groq.com/keys</p>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
     # Input type tabs
@@ -561,12 +561,12 @@ if st.session_state.step == 1:
             st.session_state.file_path  = None
             st.session_state.raw_text_input = pasted_text.strip()
 
-        st.session_state.gemini_api_key = api_key
+        st.session_state.groq_api_key = api_key
         st.session_state.step = 2
         st.rerun()
 
     if not api_key:
-        st.warning("Please enter your Gemini API Key to continue.")
+        st.warning("Please enter your Groq API Key to continue.")
     elif not has_input:
         st.info("Upload a file or paste text to begin.")
 
@@ -590,7 +590,7 @@ elif st.session_state.step == 2:
                     # Text paste mode — skip file extraction, analyze directly
                     state = {
                         "file_path": None,
-                        "gemini_api_key": st.session_state.gemini_api_key,
+                        "groq_api_key": st.session_state.groq_api_key,
                         "raw_text": raw_text_input,
                         "file_data": {
                             "file_name": "pasted_text.txt",
@@ -607,7 +607,7 @@ elif st.session_state.step == 2:
                     # File upload mode
                     state = {
                         "file_path": st.session_state.file_path,
-                        "gemini_api_key": st.session_state.gemini_api_key,
+                        "groq_api_key": st.session_state.groq_api_key,
                     }
                     state = run_submission_agent(state)
 
@@ -679,7 +679,7 @@ elif st.session_state.step == 3:
                 qs = generate_viva_questions(
                     st.session_state.doc_profile,
                     st.session_state.raw_text,
-                    st.session_state.gemini_api_key
+                    st.session_state.groq_api_key
                 )
                 st.session_state.questions = qs
                 st.session_state.current_q = 0
@@ -767,7 +767,7 @@ elif st.session_state.step == 3:
                                 q["question"], ans,
                                 q.get("expected_keywords", []),
                                 q.get("marks", 3),
-                                st.session_state.gemini_api_key
+                                st.session_state.groq_api_key
                             )
 
                         total_score += ev.get("score", 0)
@@ -840,7 +840,7 @@ elif st.session_state.step == 4:
                     "doc_profile":  st.session_state.doc_profile,
                     "viva_results": st.session_state.viva_results,
                     "ai_detection": st.session_state.ai_detection,
-                    "gemini_api_key": st.session_state.gemini_api_key,
+                    "groq_api_key": st.session_state.groq_api_key,
                 }
                 state = run_feedback_agent(state)
                 st.session_state.feedback = state.get("feedback", {})
@@ -904,7 +904,7 @@ elif st.session_state.step == 5:
                     "doc_profile":  st.session_state.doc_profile,
                     "viva_results": st.session_state.viva_results,
                     "feedback":     st.session_state.feedback,
-                    "gemini_api_key": st.session_state.gemini_api_key,
+                    "groq_api_key": st.session_state.groq_api_key,
                 }
                 state = run_coach_agent(state)
                 st.session_state.study_roadmap = state.get("study_roadmap", {})
