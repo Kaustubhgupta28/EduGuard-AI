@@ -55,11 +55,7 @@ def _extract_key_facts(raw_text: str, groq_api_key: str) -> str:
 Format as a numbered list. Be SPECIFIC — copy exact phrases from the submission.
 If the submission says "The forget gate formula is ft = sigmoid(...)", include that exact statement.
 Do NOT summarize generically."""),
-        HumanMessage(content=f"STUDENT SUBMISSION:
-
-{raw_text[:6000]}
-
-Extract specific facts now:")
+        HumanMessage(content="STUDENT SUBMISSION:\n\n" + raw_text[:6000] + "\n\nExtract specific facts now:")
     ])
 
     # Remove thinking tags
