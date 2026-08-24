@@ -34,14 +34,48 @@ def _parse_json_robust(text: str):
     return None
 
 
+def _extract_key_facts(raw_text: str, groq_api_key: str) -> str:
+    """
+    Step 1: Extract specific facts, definitions, formulas, code snippets,
+    arguments from the submission. This forces question generation to be
+    grounded in actual content, not just topic knowledge.
+    """
+    llm = ChatGroq(api_key=groq_api_key, model="qwen/qwen3.6-27b", temperature=0.1)
+
+    response = llm.invoke([
+        SystemMessage(content="""Read the student submission and extract:
+1. Specific definitions or explanations given (quote them exactly)
+2. Specific formulas, equations, or mathematical statements
+3. Specific algorithms, steps, or processes described
+4. Specific advantages, disadvantages, or comparisons made
+5. Specific code functions, classes, or logic explained
+6. Specific examples or case studies mentioned
+7. Specific conclusions or claims made
+
+Format as a numbered list. Be SPECIFIC — copy exact phrases from the submission.
+If the submission says "The forget gate formula is ft = sigmoid(...)", include that exact statement.
+Do NOT summarize generically."""),
+        HumanMessage(content=f"STUDENT SUBMISSION:
+
+{raw_text[:6000]}
+
+Extract specific facts now:")
+    ])
+
+    # Remove thinking tags
+    result = re.sub(r'<think>[\s\S]*?</think>', '', response.content, flags=re.IGNORECASE).strip()
+    return result
+
+
 def generate_viva_questions(doc_profile: dict, raw_text: str, groq_api_key: str) -> list:
     """
-    Generate 9 MCQs + 1 Short Answer question.
-    Questions are based DIRECTLY on the submitted content — not just topic.
-    High temperature + random seed = different questions every run.
+    2-Step question generation:
+    Step 1: Extract specific facts from submission
+    Step 2: Generate MCQs based on those specific facts
+    This ensures questions are always grounded in actual submitted content.
     """
     rand_seed = random.randint(1000, 9999)
-    llm = ChatGroq(api_key=groq_api_key, model="qwen/qwen3.6-27b", temperature=0.9)
+    llm = ChatGroq(api_key=groq_api_key, model="qwen/qwen3.6-27b", temperature=0.85)
 
     topic        = doc_profile.get("topic", "General Topic")
     concepts     = doc_profile.get("key_concepts", [])
@@ -49,69 +83,77 @@ def generate_viva_questions(doc_profile: dict, raw_text: str, groq_api_key: str)
     has_math     = doc_profile.get("has_math", False)
     has_code     = doc_profile.get("has_code", False)
 
-    # Use more content for better question generation
-    content_sample = raw_text[:4000] if len(raw_text) > 4000 else raw_text
+    # Step 1: Extract specific facts from submission
+    key_facts = _extract_key_facts(raw_text, groq_api_key)
 
-    system_prompt = """You are a strict academic examiner evaluating whether a student actually understands what they submitted.
+    system_prompt = """You are a strict academic examiner. Your ONLY job is to test whether the student understands their OWN submission.
 
-Your job: Read the student's submission carefully and generate questions that test if they TRULY understand what they wrote.
+You will be given:
+1. The student's submission content
+2. A list of specific facts extracted from that submission
 
-CRITICAL RULES:
-- Questions MUST be based on specific content, facts, definitions, formulas, code, or arguments in the submission
-- Do NOT ask generic topic questions — ask about SPECIFIC things mentioned in the submission
-- If submission mentions a formula → ask about it
-- If submission mentions a specific algorithm → ask how it works
-- If submission mentions a specific advantage/disadvantage → ask why
-- If submission has code → ask what a specific function/class does
-- Wrong options must be plausible but clearly wrong based on submission content
-- Questions 1-9: MCQ with exactly 4 options (A/B/C/D), 1 correct
-- Question 10: Short answer requiring explanation of something specific from submission
-- Difficulty: Basic (Q1-Q3), Intermediate (Q4-Q6), Advanced (Q7-Q9)
-- DIFFERENT questions every time (use the seed for variation)
-- Return ONLY a valid JSON array — no markdown, no explanation, no thinking tags
+RULES — READ CAREFULLY:
+- Every MCQ question MUST reference something SPECIFIC from the extracted facts list
+- Questions must start with phrases like:
+  "In the submission, what is defined as..."
+  "According to the submission, which formula represents..."
+  "The submission states that X happens when... What is X?"
+  "Based on the submission's explanation, why does..."
+  "The submission mentions [specific thing]. What does it mean?"
+- NEVER ask a question that could be answered without reading this specific submission
+- Wrong options must be believable alternatives, NOT obviously wrong
+- Questions 1-3: Basic (recall specific definitions/facts from submission)
+- Questions 4-6: Intermediate (understanding specific processes/relationships mentioned)
+- Questions 7-9: Advanced (reasoning about specific claims/decisions in submission)
+- Question 10: Short answer about a specific complex point in submission
+- Seed {rand_seed}: vary which facts you pick each time
+- Return ONLY valid JSON array — no markdown, no thinking
 
 EXACT JSON FORMAT:
 [
-  {
+  {{
     "type": "mcq",
     "level": "Basic",
-    "question": "According to the submission, what does X mean?",
-    "options": {
-      "A": "Correct answer from submission",
-      "B": "Plausible wrong answer",
-      "C": "Another wrong answer",
-      "D": "Another wrong answer"
-    },
+    "question": "The submission defines [specific term] as... Which of the following matches this definition?",
+    "options": {{
+      "A": "Correct definition from submission",
+      "B": "Similar but wrong definition",
+      "C": "Completely different concept",
+      "D": "Partially correct definition"
+    }},
     "correct_option": "A",
-    "correct_answer": "Correct answer from submission",
+    "correct_answer": "Correct definition from submission",
     "marks": 1
-  },
-  {
+  }},
+  {{
     "type": "short",
     "level": "Advanced",
-    "question": "The submission mentions Y. Explain why this is important and how it works.",
+    "question": "The submission explains [specific process/claim]. Explain in your own words why this works and what would happen if [specific condition changed].",
     "expected_keywords": ["keyword1", "keyword2", "keyword3"],
     "marks": 3
-  }
+  }}
 ]"""
 
-    user_prompt = f"""STUDENT SUBMISSION TO ANALYZE:
-Topic: {topic}
-Subject: {subject_area}
-Key Concepts Detected: {', '.join(concepts) if concepts else 'Not detected'}
-Has Mathematical Content: {has_math}
-Has Code: {has_code}
-Random Seed (for variation): {rand_seed}
+    user_prompt = f"""STUDENT SUBMISSION:
+Topic: {topic} | Subject: {subject_area}
+Has Math: {has_math} | Has Code: {has_code}
+Seed: {rand_seed}
 
---- FULL SUBMISSION CONTENT ---
-{content_sample}
---- END OF SUBMISSION ---
+--- FULL SUBMISSION (use this to verify facts) ---
+{raw_text[:5000]}
+--- END SUBMISSION ---
 
-Now generate 9 MCQs + 1 short answer question STRICTLY based on the above submission content.
-Test whether the student truly understands what they wrote — not just the general topic."""
+--- SPECIFIC FACTS EXTRACTED FROM SUBMISSION ---
+{key_facts}
+--- END FACTS ---
+
+Generate 9 MCQs + 1 short answer question.
+EVERY question must reference a SPECIFIC fact, formula, definition, or statement from the extracted facts above.
+Start each question with "The submission mentions/states/defines/explains..."
+Test deep understanding of what was actually written, not general knowledge."""
 
     response = llm.invoke([
-        SystemMessage(content=system_prompt),
+        SystemMessage(content=system_prompt.format(rand_seed=rand_seed)),
         HumanMessage(content=user_prompt)
     ])
 
