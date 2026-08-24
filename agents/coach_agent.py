@@ -29,7 +29,7 @@ def run_coach_agent(state: dict) -> dict:
     if not all_weak:
         all_weak = key_concepts[:3]
 
-    llm = ChatGroq(api_key=groq_api_key, model="llama-3.3-70b-versatile", temperature=0.6)
+    llm = ChatGroq(api_key=groq_api_key, model="qwen/qwen3.6-27b", temperature=0.6)
 
     system_prompt = """You are an expert academic learning coach.
 Create a personalized 7-day study roadmap for a student.
