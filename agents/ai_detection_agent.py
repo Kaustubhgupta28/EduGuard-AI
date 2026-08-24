@@ -111,7 +111,7 @@ def compute_ai_score(text: str) -> dict:
 
 def llm_ai_analysis(text: str, groq_api_key: str) -> dict:
     """Use LLM to semantically analyze writing style for AI patterns."""
-    llm = ChatGroq(api_key=groq_api_key, model="llama-3.3-70b-versatile", temperature=0.1)
+    llm = ChatGroq(api_key=groq_api_key, model="qwen/qwen3.6-27b", temperature=0.1)
 
     system_prompt = """You are an expert in identifying AI-generated academic text.
 Analyze the given text and return ONLY valid JSON with these keys:
