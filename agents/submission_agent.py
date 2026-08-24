@@ -39,7 +39,7 @@ def run_submission_agent(state: dict) -> dict:
     print(f"  Words    : {file_data['word_count']}")
 
     # --- Step 2: Use LLM to analyze document ---
-    llm = ChatGroq(api_key=groq_api_key, model="llama-3.3-70b-versatile", temperature=0.3)
+    llm = ChatGroq(api_key=groq_api_key, model="qwen/qwen3.6-27b", temperature=0.3)
 
     system_prompt = """You are an expert academic document analyzer.
 Analyze the given student submission and return a structured JSON profile.
