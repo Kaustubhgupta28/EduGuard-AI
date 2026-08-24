@@ -1,5 +1,6 @@
 import json
-from langchain_google_genai import ChatGoogleGenerativeAI
+
+from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage, SystemMessage
 
 
@@ -10,22 +11,50 @@ def run_feedback_agent(state: dict) -> dict:
     - Generates personalized student feedback (mentor tone)
     - Generates professor evaluation report
     """
-    doc_profile  = state.get("doc_profile", {})
+
+    doc_profile = state.get("doc_profile", {})
     viva_results = state.get("viva_results", {})
     ai_detection = state.get("ai_detection", {})
-    gemini_api_key = state.get("gemini_api_key")
+    groq_api_key = state.get("groq_api_key")
 
     print("[Feedback Agent] Generating feedback...\n")
 
-    topic          = doc_profile.get("topic", "submission")
-    understanding  = viva_results.get("understanding_level", "Unknown")
-    viva_score_pct = viva_results.get("percentage", 0)
-    weak_concepts  = viva_results.get("weak_concepts", [])
-    ai_score       = ai_detection.get("ai_involvement_score", 0)
-    risk_level     = ai_detection.get("risk_level", "Unknown")
-    semantic       = ai_detection.get("semantic_analysis", {})
+    if not groq_api_key:
+        return {
+            **state,
+            "feedback": {
+                "student_feedback": {
+                    "overall_message": "Groq API key is missing.",
+                    "strengths": [],
+                    "areas_to_improve": [],
+                    "immediate_action": "Configure GROQ_API_KEY and rerun the analysis.",
+                    "encouragement": "Once the API key is configured, feedback can be generated.",
+                },
+                "professor_report": {
+                    "summary": "Feedback generation was unavailable because the Groq API key is missing.",
+                    "ai_usage_assessment": "Unavailable",
+                    "understanding_assessment": "Unavailable",
+                    "integrity_concern_level": "Unknown",
+                    "recommended_action": "Detailed Review",
+                    "notes_for_professor": "Configure GROQ_API_KEY and rerun.",
+                },
+            },
+            "error": "Groq API key is missing.",
+        }
 
-    llm = ChatGoogleGenerativeAI(api_key=gemini_api_key, model="gemini-2.0-flash", temperature=0.5)
+    topic = doc_profile.get("topic", "submission")
+    understanding = viva_results.get("understanding_level", "Unknown")
+    viva_score_pct = viva_results.get("percentage", 0)
+    weak_concepts = viva_results.get("weak_concepts", [])
+    ai_score = ai_detection.get("ai_involvement_score", 0)
+    risk_level = ai_detection.get("risk_level", "Unknown")
+    semantic = ai_detection.get("semantic_analysis", {})
+
+    llm = ChatGroq(
+        groq_api_key=groq_api_key,
+        model="llama-3.3-70b-versatile",
+        temperature=0.5,
+    )
 
     # ── Student Feedback ──
     student_system = """You are a supportive academic mentor.
@@ -49,20 +78,41 @@ Red Flags: {', '.join(semantic.get('red_flags', [])) if semantic.get('red_flags'
 
 Generate student feedback."""
 
-    s_response = llm.invoke([
-        SystemMessage(content=student_system),
-        HumanMessage(content=student_user)
-    ])
+    s_response = llm.invoke(
+        [
+            SystemMessage(content=student_system),
+            HumanMessage(content=student_user),
+        ]
+    )
 
     try:
-        student_feedback = json.loads(s_response.content.strip())
+        content = s_response.content.strip()
+
+        if content.startswith("```"):
+            parts = content.split("```")
+            if len(parts) >= 2:
+                content = parts[1]
+                if content.strip().lower().startswith("json"):
+                    content = content.strip()[4:]
+
+        student_feedback = json.loads(content.strip())
+
     except Exception:
         student_feedback = {
-            "overall_message": f"Your viva performance shows {understanding} understanding of {topic}.",
+            "overall_message": (
+                f"Your viva performance shows {understanding} "
+                f"understanding of {topic}."
+            ),
             "strengths": ["Attempted all questions"],
-            "areas_to_improve": weak_concepts[:3] if weak_concepts else ["Review core concepts"],
+            "areas_to_improve": (
+                weak_concepts[:3]
+                if weak_concepts
+                else ["Review core concepts"]
+            ),
             "immediate_action": "Review the weak topics identified above.",
-            "encouragement": "Keep learning — improvement comes with consistent effort!"
+            "encouragement": (
+                "Keep learning — improvement comes with consistent effort!"
+            ),
         }
 
     # ── Professor Report ──
@@ -89,34 +139,71 @@ Citation Status: {semantic.get('citation_authenticity', 'Unknown')}
 
 Generate professor evaluation report."""
 
-    p_response = llm.invoke([
-        SystemMessage(content=prof_system),
-        HumanMessage(content=prof_user)
-    ])
+    p_response = llm.invoke(
+        [
+            SystemMessage(content=prof_system),
+            HumanMessage(content=prof_user),
+        ]
+    )
 
     try:
-        professor_report = json.loads(p_response.content.strip())
+        content = p_response.content.strip()
+
+        if content.startswith("```"):
+            parts = content.split("```")
+            if len(parts) >= 2:
+                content = parts[1]
+                if content.strip().lower().startswith("json"):
+                    content = content.strip()[4:]
+
+        professor_report = json.loads(content.strip())
+
     except Exception:
         professor_report = {
-            "summary": f"Student shows {understanding} understanding with {ai_score}% AI involvement.",
-            "ai_usage_assessment": f"AI involvement estimated at {ai_score}% ({risk_level} risk).",
+            "summary": (
+                f"Student shows {understanding} understanding with "
+                f"{ai_score}% AI involvement."
+            ),
+            "ai_usage_assessment": (
+                f"AI involvement estimated at {ai_score}% "
+                f"({risk_level} risk)."
+            ),
             "understanding_assessment": f"Viva score: {viva_score_pct}%.",
             "integrity_concern_level": risk_level,
-            "recommended_action": "Additional Viva" if ai_score > 60 else "Pass",
-            "notes_for_professor": "Review weak concepts identified during viva."
+            "recommended_action": (
+                "Additional Viva" if ai_score > 60 else "Pass"
+            ),
+            "notes_for_professor": (
+                "Review weak concepts identified during viva."
+            ),
         }
 
     # ── Print Summary ──
     print("  ── STUDENT FEEDBACK ──")
     print(f"  {student_feedback.get('overall_message')}")
-    print(f"  Strengths         : {', '.join(student_feedback.get('strengths', []))}")
-    print(f"  Improve           : {', '.join(student_feedback.get('areas_to_improve', []))}")
-    print(f"  Action            : {student_feedback.get('immediate_action')}")
+    print(
+        f"  Strengths         : "
+        f"{', '.join(student_feedback.get('strengths', []))}"
+    )
+    print(
+        f"  Improve           : "
+        f"{', '.join(student_feedback.get('areas_to_improve', []))}"
+    )
+    print(
+        f"  Action            : "
+        f"{student_feedback.get('immediate_action')}"
+    )
     print()
     print("  ── PROFESSOR REPORT ──")
     print(f"  {professor_report.get('summary')}")
-    print(f"  Integrity Concern : {professor_report.get('integrity_concern_level')}")
-    print(f"  Recommendation    : {professor_report.get('recommended_action')}")
+    print(
+        f"  Integrity Concern : "
+        f"{professor_report.get('integrity_concern_level')}"
+    )
+    print(
+        f"  Recommendation    : "
+        f"{professor_report.get('recommended_action')}"
+    )
     print()
     print("[Feedback Agent] Done.\n")
 
@@ -125,5 +212,5 @@ Generate professor evaluation report."""
         "feedback": {
             "student_feedback": student_feedback,
             "professor_report": professor_report,
-        }
+        },
     }
