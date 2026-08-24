@@ -8,7 +8,7 @@ def generate_viva_questions(doc_profile: dict, raw_text: str, groq_api_key: str)
     Generate 3-level viva questions based on the submission topic.
     Basic → Intermediate → Advanced
     """
-    llm = ChatGroq(api_key=groq_api_key, model="llama-3.3-70b-versatile", temperature=0.7)
+    llm = ChatGroq(api_key=groq_api_key, model="qwen/qwen3.6-27b", temperature=0.7)
 
     topic        = doc_profile.get("topic", "General Topic")
     concepts     = doc_profile.get("key_concepts", [])
@@ -74,7 +74,7 @@ def evaluate_answer(question: str, student_answer: str, expected_keywords: list,
     Evaluate a single student answer using LLM.
     Returns score, feedback, and missing concepts.
     """
-    llm = ChatGroq(api_key=groq_api_key, model="llama-3.3-70b-versatile", temperature=0.2)
+    llm = ChatGroq(api_key=groq_api_key, model="qwen/qwen3.6-27b", temperature=0.2)
 
     system_prompt = """You are a strict but fair academic evaluator.
 Evaluate the student's answer and return ONLY valid JSON:
