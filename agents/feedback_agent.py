@@ -25,7 +25,7 @@ def run_feedback_agent(state: dict) -> dict:
     risk_level     = ai_detection.get("risk_level", "Unknown")
     semantic       = ai_detection.get("semantic_analysis", {})
 
-    llm = ChatGroq(api_key=groq_api_key, model="llama-3.3-70b-versatile", temperature=0.5)
+    llm = ChatGroq(api_key=groq_api_key, model="qwen/qwen3.6-27b", temperature=0.5)
 
     # ── Student Feedback ──
     student_system = """You are a supportive academic mentor.
